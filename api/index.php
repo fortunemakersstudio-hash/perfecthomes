@@ -17,8 +17,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 header('Content-Type: application/json; charset=utf-8');
 
-// 2. Configuration & Secrets
-$AUTH_SECRET = getenv('AUTH_SECRET') ?: 'ph_sec_a89f928e44b9319e830e2f42a59f518e1d7c92b4510e4a779c8821d3f9b20e11';
+// 2. Configuration & Secrets (.env auto-loader)
+$envLocations = [__DIR__ . '/../.env', __DIR__ . '/.env', dirname(__DIR__, 2) . '/.env'];
+foreach ($envLocations as $envPath) {
+    if (file_exists($envPath) && is_readable($envPath)) {
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) continue;
+            $eqPos = strpos($line, '=');
+            if ($eqPos !== false) {
+                $k = trim(substr($line, 0, $eqPos));
+                $v = trim(substr($line, $eqPos + 1));
+                if ((str_starts_with($v, '"') && str_ends_with($v, '"')) || (str_starts_with($v, "'") && str_ends_with($v, "'"))) {
+                    $v = substr($v, 1, -1);
+                }
+                if (!getenv($k)) {
+                    putenv("$k=$v");
+                    $_ENV[$k] = $v;
+                }
+            }
+        }
+        break;
+    }
+}
+
+$AUTH_SECRET = getenv('AUTH_SECRET') ?: 'ph_sec_a7f92e81bc4d90e28f3a5c1b846e91029348d7c6b5e4a3f2';
 $ADMIN_INITIAL_PASSWORD = getenv('ADMIN_INITIAL_PASSWORD') ?: 'PerfectAdmin#2026!Secure';
 
 $DB_HOST = getenv('DB_HOST') ?: 'localhost';

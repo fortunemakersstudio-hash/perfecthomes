@@ -1,25 +1,20 @@
 # PERFECT HOMES & DEVELOPERS — HOSTINGER PRODUCTION APACHE CONFIGURATION
-# Dual Architecture: Supports Node.js Web App (mod_proxy) + Native API Engine + SPA Routing
+# Supports Native API Engine + Single Page Application Routing (React Router)
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # 1. Reverse Proxy to local Node.js process (if mod_proxy is enabled on Hostinger)
-  <IfModule mod_proxy.c>
-    RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
-  </IfModule>
-
-  # 2. Native API Router: Forward /api/ requests to api/index.php
+  # 1. Native API Router: Forward /api and /api/* requests internally to api/index.php
   RewriteRule ^api/(.*)$ api/index.php [QSA,L]
   RewriteRule ^api$ api/index.php [QSA,L]
 
-  # 3. Do not rewrite existing physical files or directories
+  # 2. Do not rewrite existing physical files or directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 4. SPA HTML5 History Mode Fallback (React Router)
+  # 3. SPA HTML5 History Mode Fallback (React Router)
   RewriteRule ^index\.html$ - [L]
   RewriteRule . /index.html [L]
 </IfModule>
