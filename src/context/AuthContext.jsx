@@ -150,41 +150,31 @@ export function AuthProvider({ children }) {
 
   // Login handler
   const login = async (identifier, password, rememberMe = true) => {
-    setIsLoading(true);
-    try {
-      const res = await apiLogin(identifier, password);
-      const { user: authedUser, token: authToken } = res;
+    const res = await apiLogin(identifier, password);
+    const { user: authedUser, token: authToken } = res;
 
-      setUser(authedUser);
-      setToken(authToken);
-      storeSession(authToken, authedUser, rememberMe);
+    setUser(authedUser);
+    setToken(authToken);
+    storeSession(authToken, authedUser, rememberMe);
 
-      if (authedUser.mustChangePassword) {
-        setShowPasswordChangeModal(true);
-      }
-
-      addToast(`Welcome back, ${authedUser.firstName || authedUser.name}!`, 'success');
-      return authedUser;
-    } finally {
-      setIsLoading(false);
+    if (authedUser.mustChangePassword) {
+      setShowPasswordChangeModal(true);
     }
+
+    addToast(`Welcome back, ${authedUser.firstName || authedUser.name}!`, 'success');
+    return authedUser;
   };
 
   // Register handler: persists user to production database and supports instant auto-login
   const register = async ({ fullName, email, phone, password, autoLogin = true }) => {
-    setIsLoading(true);
-    try {
-      const res = await apiRegister({ fullName, email, phone, password });
-      if (autoLogin && res && res.user && res.token) {
-        setUser(res.user);
-        setToken(res.token);
-        storeSession(res.token, res.user, true);
-        addToast(`Welcome to Perfect Homes & Developers, ${res.user.firstName || res.user.name}!`, 'success');
-      }
-      return res;
-    } finally {
-      setIsLoading(false);
+    const res = await apiRegister({ fullName, email, phone, password });
+    if (autoLogin && res && res.user && res.token) {
+      setUser(res.user);
+      setToken(res.token);
+      storeSession(res.token, res.user, true);
+      addToast(`Welcome to Perfect Homes & Developers, ${res.user.firstName || res.user.name}!`, 'success');
     }
+    return res;
   };
 
   // Logout handler

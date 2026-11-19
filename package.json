@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "server.js",
   "description": "Perfect Homes & Developers — Production Website for Hostinger Business Node.js Hosting",
   "scripts": {
     "start": "node server.js",
