@@ -87,17 +87,25 @@ export default function RegisterPage({ navigate }) {
 
     setIsSubmitting(true);
     try {
-      await register({
+      const res = await register({
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
-        password: formData.password
+        password: formData.password,
+        autoLogin: true
       });
-      addToast('Registration successful! Please sign in using your newly registered credentials.', 'success');
-      navigate('login', {
-        registrationSuccess: true,
-        email: formData.email
-      });
+
+      if (res && res.user) {
+        // Instant seamless access to full website upon successful registration
+        navigate('home');
+      } else {
+        // Fallback: redirect to login with prefilled email
+        addToast('Registration successful! Please sign in using your newly registered credentials.', 'success');
+        navigate('login', {
+          registrationSuccess: true,
+          email: formData.email
+        });
+      }
     } catch (err) {
       setServerError(err.message || 'Registration failed. Please verify your details.');
     } finally {

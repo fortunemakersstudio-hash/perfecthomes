@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import React, { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth, getStoredUser, getStoredToken } from './context/AuthContext';
 import { PropertyProvider, useProperties } from './context/PropertyContext';
 import { ToastProvider } from './context/ToastContext';
 
@@ -68,9 +68,14 @@ function AppContent() {
 
   const [authParams, setAuthParams] = useState(null);
 
-  // Default entry flow: unauthenticated users ALWAYS see login first
+  // Default entry flow: authenticated visitors resume their destination; unauthenticated visitors see login
   const [currentPage, setCurrentPage] = useState(() => {
     const init = getInitialRouteInfo();
+    const stored = getStoredUser();
+    if (stored) {
+      if (init.isAuthFlow) return stored.role === 'admin' ? 'admin' : 'home';
+      return init.page || 'home';
+    }
     if (init.page === 'register' || init.page === 'forgot-password') {
       return init.page;
     }
@@ -82,7 +87,11 @@ function AppContent() {
     if (init.page === 'property-details' && init.slug) {
       return { page: 'property-details', slug: init.slug };
     }
-    return init.isAuthFlow ? 'home' : (init.page || 'home');
+    if (init.isAuthFlow) {
+      const stored = getStoredUser();
+      return stored?.role === 'admin' ? 'admin' : 'home';
+    }
+    return init.page || 'home';
   });
 
   const [selectedProperty, setSelectedProperty] = useState(() => {
@@ -165,18 +174,26 @@ function AppContent() {
           } catch {}
         }
       } else {
-        // Authenticated visitor: redirect away from auth flow into complete website or intended page
+        // Authenticated visitor: ALWAYS exit auth flow into complete website or intended page
         if (AUTH_FLOW_PAGES.includes(currentPage)) {
-          const target = redirectTarget || 'home';
-          if (target && typeof target === 'object' && target.page === 'property-details') {
-            const match = properties.find((p) => p.slug === target.slug || p.id === target.slug);
+          let dest = redirectTarget;
+          const isInvalidDest = !dest || AUTH_FLOW_PAGES.includes(dest) || (typeof dest === 'object' && AUTH_FLOW_PAGES.includes(dest.page));
+
+          if (isInvalidDest) {
+            dest = user?.role === 'admin' ? 'admin' : 'home';
+          }
+
+          if (typeof dest === 'object' && dest.page === 'property-details' && dest.slug) {
+            const match = properties.find((p) => p.slug === dest.slug || p.id === dest.slug);
             if (match) setSelectedProperty(match);
             setCurrentPage('property-details');
             try {
-              window.history.replaceState({}, '', `/properties/${target.slug}`);
+              window.history.replaceState({}, '', `/properties/${dest.slug}`);
             } catch {}
           } else {
-            const pageDest = (typeof target === 'string' && target) || 'home';
+            const pageDest = (typeof dest === 'string' && dest && !AUTH_FLOW_PAGES.includes(dest))
+              ? dest
+              : (user?.role === 'admin' ? 'admin' : 'home');
             setCurrentPage(pageDest);
             try {
               window.history.replaceState({}, '', pageDest === 'home' ? '/' : `/${pageDest}`);
@@ -185,7 +202,7 @@ function AppContent() {
         }
       }
     }
-  }, [isAuthenticated, isLoading, currentPage, redirectTarget, properties]);
+  }, [isAuthenticated, isLoading, currentPage, redirectTarget, properties, user]);
 
   // Router navigation handler
   const navigate = (page, params = null) => {
@@ -206,10 +223,17 @@ function AppContent() {
       if (params.registrationSuccess || params.email) {
         setAuthParams(params);
       }
+      if (params.slug) {
+        const match = properties.find((p) => p.slug === params.slug || p.id === params.slug);
+        if (match) setSelectedProperty(match);
+      }
     }
 
+    // Check both React state AND stored session to prevent login race conditions
+    const hasActiveAuth = isAuthenticated || !!getStoredUser() || !!getStoredToken();
+
     // Protect all website pages if visitor is not signed in
-    if (!isAuthenticated && !AUTH_FLOW_PAGES.includes(page)) {
+    if (!hasActiveAuth && !AUTH_FLOW_PAGES.includes(page)) {
       setRedirectTarget(page);
       setCurrentPage('login');
       try {
@@ -218,15 +242,21 @@ function AppContent() {
       return;
     }
 
-    setCurrentPage(page);
+    // If authenticated, never navigate into auth pages (login/register/forgot-password)
+    let targetPage = page;
+    if (hasActiveAuth && AUTH_FLOW_PAGES.includes(targetPage)) {
+      targetPage = (user?.role === 'admin' || getStoredUser()?.role === 'admin') ? 'admin' : 'home';
+    }
+
+    setCurrentPage(targetPage);
 
     try {
-      if (page === 'home') {
+      if (targetPage === 'home') {
         window.history.pushState({}, '', '/');
-      } else if (page === 'property-details' && selectedProperty?.slug) {
+      } else if (targetPage === 'property-details' && selectedProperty?.slug) {
         window.history.pushState({}, '', `/properties/${selectedProperty.slug}`);
-      } else if (['listing', 'about', 'contact', 'locations', 'admin', 'profile', 'wishlist', 'enquiries', 'login', 'register', 'forgot-password'].includes(page)) {
-        window.history.pushState({}, '', `/${page}`);
+      } else if (['listing', 'about', 'contact', 'locations', 'admin', 'profile', 'wishlist', 'enquiries', 'login', 'register', 'forgot-password'].includes(targetPage)) {
+        window.history.pushState({}, '', `/${targetPage}`);
       }
     } catch {}
   };

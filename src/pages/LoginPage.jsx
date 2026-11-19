@@ -63,8 +63,21 @@ export default function LoginPage({
 
     setIsSubmitting(true);
     try {
-      await login(identifier, password, rememberMe);
-      navigate(redirectAfterLogin);
+      const authedUser = await login(identifier, password, rememberMe);
+
+      // Determine safe post-login destination (never redirect back to auth flow pages)
+      const AUTH_PAGES = ['login', 'register', 'forgot-password'];
+      let dest = redirectAfterLogin;
+
+      if (!dest || AUTH_PAGES.includes(dest) || (typeof dest === 'object' && AUTH_PAGES.includes(dest.page))) {
+        dest = authedUser?.role === 'admin' ? 'admin' : 'home';
+      }
+
+      if (typeof dest === 'object' && dest.page === 'property-details' && dest.slug) {
+        navigate('property-details', { slug: dest.slug });
+      } else {
+        navigate(dest);
+      }
     } catch (err) {
       setAuthError(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {

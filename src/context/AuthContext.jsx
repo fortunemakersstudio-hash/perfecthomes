@@ -21,7 +21,7 @@ const AuthContext = createContext(null);
 const STORAGE_TOKEN_KEY = 'ph_auth_token_v4';
 const STORAGE_USER_KEY = 'ph_session_user_v4';
 
-function getStoredToken() {
+export function getStoredToken() {
   try {
     return localStorage.getItem(STORAGE_TOKEN_KEY) || sessionStorage.getItem(STORAGE_TOKEN_KEY);
   } catch {
@@ -29,7 +29,7 @@ function getStoredToken() {
   }
 }
 
-function getStoredUser() {
+export function getStoredUser() {
   try {
     const raw = localStorage.getItem(STORAGE_USER_KEY) || sessionStorage.getItem(STORAGE_USER_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -151,11 +151,17 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register handler: persists user to production database
-  const register = async ({ fullName, email, phone, password }) => {
+  // Register handler: persists user to production database and supports instant auto-login
+  const register = async ({ fullName, email, phone, password, autoLogin = true }) => {
     setIsLoading(true);
     try {
       const res = await apiRegister({ fullName, email, phone, password });
+      if (autoLogin && res && res.user && res.token) {
+        setUser(res.user);
+        setToken(res.token);
+        storeSession(res.token, res.user, true);
+        addToast(`Welcome to Perfect Homes & Developers, ${res.user.firstName || res.user.name}!`, 'success');
+      }
       return res;
     } finally {
       setIsLoading(false);
