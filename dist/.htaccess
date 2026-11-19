@@ -1,0 +1,41 @@
+# PERFECT HOMES & DEVELOPERS — HOSTINGER PRODUCTION APACHE CONFIGURATION
+# Dual Architecture: Supports Node.js Web App (mod_proxy) + Native API Engine + SPA Routing
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Reverse Proxy to local Node.js process (if mod_proxy is enabled on Hostinger)
+  <IfModule mod_proxy.c>
+    RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
+  </IfModule>
+
+  # 2. Native API Router: Forward /api/ requests to api/index.php
+  RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+  RewriteRule ^api$ api/index.php [QSA,L]
+
+  # 3. Do not rewrite existing physical files or directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 4. SPA HTML5 History Mode Fallback (React Router)
+  RewriteRule ^index\.html$ - [L]
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# Caching and Header Configuration for Performance
+<IfModule mod_headers.c>
+  # Assets caching (immutable hash bundles)
+  <FilesMatch "\.(js|css|webp|png|jpg|jpeg|svg|ico|woff|woff2|ttf)$">
+    Header set Cache-Control "max-age=2592000, public"
+  </FilesMatch>
+
+  # HTML no-cache for instant updates
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+
+  # Support HTTP 206 Byte-Range for Video Streaming
+  Header set Accept-Ranges bytes
+</IfModule>
