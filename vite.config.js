@@ -67,5 +67,9 @@ function enhanceResponse(res) {
 }
 
 export default defineConfig({
-  plugins: [react(), apiDevMiddleware()]
+  plugins: [react(), apiDevMiddleware()],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: false
+  }
 });
