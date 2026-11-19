@@ -1,9 +1,17 @@
 // Centralized Database & Authentication Manager — Hostinger Business Edition
 // Dual Engine: Hostinger MySQL (with auto-table creation & migration) + Local Persistent JSON Engine
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+
+// Resilient bcrypt loader (prevents server crash if node_modules is not yet installed)
+let bcrypt = null;
+try {
+  const mod = await import('bcryptjs');
+  bcrypt = mod.default || mod;
+} catch {
+  // Node native crypto will be used if bcryptjs is missing
+}
 
 const AUTH_SECRET = process.env.AUTH_SECRET || 'ph_hostinger_secure_auth_secret_2026_key';
 const ADMIN_INITIAL_PASSWORD = process.env.ADMIN_INITIAL_PASSWORD || 'PerfectAdmin#2026!Secure';
@@ -57,7 +65,12 @@ export function formatIndianPhone(phone) {
 // ==========================================
 
 export function hashPassword(plainTextPassword) {
-  return bcrypt.hashSync(plainTextPassword, 10);
+  if (bcrypt && bcrypt.hashSync) {
+    return bcrypt.hashSync(plainTextPassword, 10);
+  }
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(plainTextPassword, salt, 10000, 64, 'sha512').toString('hex');
+  return `pbkdf2$${salt}$${hash}`;
 }
 
 export function verifyPassword(plainTextPassword, storedHash) {
@@ -75,10 +88,22 @@ export function verifyPassword(plainTextPassword, storedHash) {
 
   // 2. Standard bcrypt verification
   if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$')) {
-    return bcrypt.compareSync(plainTextPassword, storedHash);
+    if (bcrypt && bcrypt.compareSync) {
+      return bcrypt.compareSync(plainTextPassword, storedHash);
+    }
   }
 
-  // 3. Backward compatibility with legacy SHA-256 salted hashes
+  // 3. PBKDF2 native verification
+  if (storedHash.startsWith('pbkdf2$')) {
+    const parts = storedHash.split('$');
+    if (parts.length === 3) {
+      const [, salt, expectedHash] = parts;
+      const hash = crypto.pbkdf2Sync(plainTextPassword, salt, 10000, 64, 'sha512').toString('hex');
+      return hash === expectedHash;
+    }
+  }
+
+  // 4. Backward compatibility with legacy SHA-256 salted hashes
   const legacyHash = crypto.createHash('sha256').update(plainTextPassword + '_ph_salt_2026_secure').digest('hex');
   if (storedHash === legacyHash) {
     return true;

@@ -52,6 +52,22 @@ function storeSession(token, user, rememberMe = true) {
   }
 }
 
+function isTokenExpired(tok) {
+  try {
+    if (!tok || typeof tok !== 'string') return true;
+    const parts = tok.split('.');
+    if (parts.length !== 2) return true;
+    const raw = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(raw);
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function clearSession() {
   try {
     localStorage.removeItem(STORAGE_TOKEN_KEY);
@@ -104,7 +120,7 @@ export function AuthProvider({ children }) {
             if (res.user.mustChangePassword) {
               setShowPasswordChangeModal(true);
             }
-          } else {
+          } else if (res && !res.success && (res.statusCode === 401 || res.error?.includes('expired') || isTokenExpired(activeToken))) {
             console.warn('Session verification rejected by server:', res?.error || 'Invalid session');
             clearSession();
             setUser(null);
@@ -112,11 +128,14 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (err) {
-        console.warn('Active session invalidated:', err.message);
-        clearSession();
-        if (mounted) {
-          setUser(null);
-          setToken(null);
+        console.warn('Session check note:', err.message);
+        // Only clear session if token is definitively expired or server explicitly rejected with 401
+        if (err.statusCode === 401 || err.statusCode === 403 || isTokenExpired(activeToken)) {
+          clearSession();
+          if (mounted) {
+            setUser(null);
+            setToken(null);
+          }
         }
       } finally {
         if (mounted) setIsLoading(false);

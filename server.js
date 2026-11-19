@@ -53,7 +53,8 @@ import resetPasswordHandler from './api/reset-password.js';
 import updateProfileHandler from './api/update-profile.js';
 import { getDatabaseStatus } from './api/_db.js';
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const rawPort = process.env.PORT || '3000';
+const PORT = isNaN(rawPort) ? rawPort : parseInt(rawPort, 10);
 const DIST_DIR = path.join(__dirname, 'dist');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -231,16 +232,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      if (pathname === '/api/login') {
+      if (pathname === '/api/login' || pathname === '/api/auth/login') {
         return await loginHandler(req, res);
       }
-      if (pathname === '/api/register') {
+      if (pathname === '/api/register' || pathname === '/api/auth/register') {
         return await registerHandler(req, res);
       }
-      if (pathname === '/api/session') {
+      if (pathname === '/api/session' || pathname === '/api/auth/me' || pathname === '/api/me') {
         return await sessionHandler(req, res);
       }
-      if (pathname === '/api/users') {
+      if (pathname === '/api/users' || pathname === '/api/auth/users') {
         return await usersHandler(req, res);
       }
       if (pathname === '/api/property') {
