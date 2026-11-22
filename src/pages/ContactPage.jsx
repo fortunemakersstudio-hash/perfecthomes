@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import OfficeMapSection from '../components/OfficeMapSection';
 import { downloadCompanyContactPdf } from '../services/brochureGenerator';
+import { trackGetDirectionsConversion } from '../utils/googleAds';
 
 export default function ContactPage({ onOpenScheduleVisit }) {
   const { submitEnquiry } = useProperties();
@@ -224,6 +225,7 @@ export default function ContactPage({ onOpenScheduleVisit }) {
                   className="btn btn-outline btn-sm"
                   id="contact-get-directions-btn"
                   aria-label="Get Directions to Office"
+                  onClick={() => trackGetDirectionsConversion({ source: 'contact-page-office' })}
                   style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.82rem', padding: '0.55rem 0.75rem', textDecoration: 'none', whiteSpace: 'nowrap' }}
                 >
                   <Navigation size={15} style={{ flexShrink: 0 }} />

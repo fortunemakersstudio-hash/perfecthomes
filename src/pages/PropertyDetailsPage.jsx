@@ -44,6 +44,7 @@ import {
   Film,
   Navigation
 } from 'lucide-react';
+import { trackGetDirectionsConversion } from '../utils/googleAds';
 
 export default function PropertyDetailsPage({
   property,
@@ -1302,6 +1303,9 @@ export default function PropertyDetailsPage({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm"
+                      id={`property-get-directions-${property.id}`}
+                      aria-label={`Get Directions to ${property.title}`}
+                      onClick={() => trackGetDirectionsConversion({ source: 'property-details', propertyId: property.id, propertyTitle: property.title })}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',

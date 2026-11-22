@@ -33,6 +33,7 @@ import AboutUsPage from './pages/AboutUsPage';
 import LocationsPage from './pages/LocationsPage';
 import ContactPage from './pages/ContactPage';
 import AdminPage from './pages/AdminPage';
+import { initGlobalDirectionsTracking } from './utils/googleAds';
 
 function AppContent() {
   const { isAuthenticated, user, isLoading } = useAuth();
@@ -117,6 +118,12 @@ function AppContent() {
   const [compareModalOpen, setCompareModalOpen] = useState(false);
   const [brochureProperty, setBrochureProperty] = useState(null);
   const [scheduleProperty, setScheduleProperty] = useState(null);
+
+  // Initialize Google Ads conversion tracking delegated listener
+  useEffect(() => {
+    const cleanup = initGlobalDirectionsTracking();
+    return cleanup;
+  }, []);
 
   // Sync browser back/forward buttons and initial property slug
   useEffect(() => {

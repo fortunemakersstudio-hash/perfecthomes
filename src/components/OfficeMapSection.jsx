@@ -6,6 +6,7 @@
 import React from 'react';
 import { MapPin, Navigation, ExternalLink, Phone, Mail, Clock, Building2 } from 'lucide-react';
 import { PART5_OFFICE_MAP, PART4_MEDIA } from '../data/projectMediaHelpers.js';
+import { trackGetDirectionsConversion } from '../utils/googleAds.js';
 
 export default function OfficeMapSection() {
   const officeMapUrl = PART5_OFFICE_MAP.googleMapsUrl || "https://www.google.com/maps/search/?api=1&query=13.124850%2C80.043786";
@@ -265,6 +266,7 @@ export default function OfficeMapSection() {
                 className="btn btn-secondary"
                 id="get-directions-btn"
                 aria-label="Get Directions to Office"
+                onClick={() => trackGetDirectionsConversion({ source: 'office-map-section' })}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

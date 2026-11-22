@@ -21,3 +21,9 @@ Thumbs.db
 
 # Scratch & temporary test directories
 scratch/
+.vercel/
+Perfect-Homes-Developers-Hostinger-Delivery*
+*.py
+photos/
+test_auth_e2e.js
+test_production_live.js
