@@ -1,12 +1,13 @@
 /* ==========================================================================
-   PERFECT HOMES & DEVELOPERS — GOOGLE ADS CONVERSION TRACKING UTILITY
+   PERFECT HOMES & DEVELOPERS — GOOGLE ADS & GTM CONVERSION TRACKING UTILITY
    Conversion Action: Get directions
-   Google Tag ID: GTM-NSXP9B2R
+   Google Tag Manager Container ID: GTM-NSXP9B2R
    Google Ads Conversion ID: AW-18535280527
    Conversion Label: VgE0CPjI3bwdEI_fp4ZF
    ========================================================================== */
 
-export const GOOGLE_TAG_ID = 'GTM-NSXP9B2R';
+export const GTM_CONTAINER_ID = 'GTM-NSXP9B2R';
+export const GOOGLE_TAG_ID = 'GTM-NSXP9B2R'; // Alias for compatibility
 export const GOOGLE_ADS_ID = 'AW-18535280527';
 export const GET_DIRECTIONS_CONVERSION_LABEL = 'VgE0CPjI3bwdEI_fp4ZF';
 export const GET_DIRECTIONS_SEND_TO = `${GOOGLE_ADS_ID}/${GET_DIRECTIONS_CONVERSION_LABEL}`;

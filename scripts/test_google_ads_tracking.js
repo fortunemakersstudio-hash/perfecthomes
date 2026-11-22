@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 import {
+  GTM_CONTAINER_ID,
   GOOGLE_TAG_ID,
   GOOGLE_ADS_ID,
   GET_DIRECTIONS_CONVERSION_LABEL,
@@ -41,7 +42,8 @@ async function runTestSuite() {
   // SECTION 1: CONFIGURATION & CONSTANTS INTEGRITY
   // ----------------------------------------------------------------------------
   console.log('--- SECTION 1: Google Ads Configuration Constants ---');
-  assert(GOOGLE_TAG_ID === 'GTM-NSXP9B2R', 'Google Tag ID is GTM-NSXP9B2R');
+  assert(GTM_CONTAINER_ID === 'GTM-NSXP9B2R', 'Google Tag Manager Container ID is GTM-NSXP9B2R');
+  assert(GOOGLE_TAG_ID === 'GTM-NSXP9B2R', 'Google Tag ID alias is GTM-NSXP9B2R');
   assert(GOOGLE_ADS_ID === 'AW-18535280527', 'Google Ads Conversion ID is AW-18535280527');
   assert(GET_DIRECTIONS_CONVERSION_LABEL === 'VgE0CPjI3bwdEI_fp4ZF', 'Conversion label is VgE0CPjI3bwdEI_fp4ZF');
   assert(GET_DIRECTIONS_SEND_TO === 'AW-18535280527/VgE0CPjI3bwdEI_fp4ZF', 'send_to is AW-18535280527/VgE0CPjI3bwdEI_fp4ZF');
@@ -51,16 +53,22 @@ async function runTestSuite() {
   // ----------------------------------------------------------------------------
   console.log('\n--- SECTION 2: Global HTML Document Verification ---');
   const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
-  assert(indexHtml.includes('https://www.googletagmanager.com/gtag/js?id=GTM-NSXP9B2R'), 'index.html loads gtag.js with GTM-NSXP9B2R');
-  assert(indexHtml.includes("gtag('config', 'GTM-NSXP9B2R');"), 'index.html configures GTM-NSXP9B2R');
+  assert(indexHtml.includes('https://www.googletagmanager.com/gtm.js?id='), 'index.html includes official GTM container script');
+  assert(indexHtml.includes('GTM-NSXP9B2R'), 'index.html specifies GTM container GTM-NSXP9B2R');
+  assert(indexHtml.includes('https://www.googletagmanager.com/ns.html?id=GTM-NSXP9B2R'), 'index.html includes GTM noscript iframe');
+  assert(indexHtml.includes('https://www.googletagmanager.com/gtag/js?id=AW-18535280527'), 'index.html loads gtag.js for Google Ads AW-18535280527');
   assert(indexHtml.includes("gtag('config', 'AW-18535280527');"), 'index.html configures AW-18535280527');
+  assert(!indexHtml.includes('gtag/js?id=GTM-'), 'CORRECTION: GTM container is NOT loaded through gtag.js');
   assert(indexHtml.includes('window.dataLayer = window.dataLayer || [];'), 'index.html initializes window.dataLayer');
 
   // Check built dist/index.html
   const distIndexHtml = fs.readFileSync(path.join(rootDir, 'dist', 'index.html'), 'utf8');
-  assert(distIndexHtml.includes('https://www.googletagmanager.com/gtag/js?id=GTM-NSXP9B2R'), 'dist/index.html includes gtag.js');
-  assert(distIndexHtml.includes("gtag('config', 'GTM-NSXP9B2R');"), 'dist/index.html configures GTM-NSXP9B2R');
+  assert(distIndexHtml.includes('https://www.googletagmanager.com/gtm.js?id='), 'dist/index.html includes official GTM container script');
+  assert(distIndexHtml.includes('GTM-NSXP9B2R'), 'dist/index.html specifies GTM container GTM-NSXP9B2R');
+  assert(distIndexHtml.includes('https://www.googletagmanager.com/ns.html?id=GTM-NSXP9B2R'), 'dist/index.html includes GTM noscript iframe');
+  assert(distIndexHtml.includes('https://www.googletagmanager.com/gtag/js?id=AW-18535280527'), 'dist/index.html loads gtag.js for Google Ads AW-18535280527');
   assert(distIndexHtml.includes("gtag('config', 'AW-18535280527');"), 'dist/index.html configures AW-18535280527');
+  assert(!distIndexHtml.includes('gtag/js?id=GTM-'), 'CORRECTION: dist/index.html does NOT load GTM container through gtag.js');
 
   // ----------------------------------------------------------------------------
   // SECTION 3: BUNDLED ASSETS VERIFICATION
