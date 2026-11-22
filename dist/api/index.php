@@ -300,6 +300,78 @@ function saveAllUsers($users) {
     return true;
 }
 
+function getPropertiesFilePath() {
+    $candidates = [
+        __DIR__ . '/../data/properties_database.json',
+        __DIR__ . '/data/properties_database.json',
+        dirname(__DIR__) . '/data/properties_database.json'
+    ];
+    foreach ($candidates as $c) {
+        if (file_exists($c)) return $c;
+    }
+    return dirname(__DIR__) . '/data/properties_database.json';
+}
+
+function loadAllProperties() {
+    $jsonFile = getPropertiesFilePath();
+    if (file_exists($jsonFile)) {
+        $data = json_decode(file_get_contents($jsonFile), true);
+        if (is_array($data)) return $data;
+    }
+    return [];
+}
+
+function getMediaFilePath() {
+    $candidates = [
+        __DIR__ . '/../data/media_database.json',
+        __DIR__ . '/data/media_database.json',
+        dirname(__DIR__) . '/data/media_database.json'
+    ];
+    foreach ($candidates as $c) {
+        if (file_exists($c)) return $c;
+    }
+    return dirname(__DIR__) . '/data/media_database.json';
+}
+
+function loadAllMedia() {
+    $jsonFile = getMediaFilePath();
+    if (file_exists($jsonFile)) {
+        $data = json_decode(file_get_contents($jsonFile), true);
+        if (is_array($data)) return $data;
+    }
+    return [];
+}
+
+function getEnquiriesFilePath() {
+    $candidates = [
+        __DIR__ . '/../data/enquiries_database.json',
+        __DIR__ . '/data/enquiries_database.json',
+        dirname(__DIR__) . '/data/enquiries_database.json'
+    ];
+    foreach ($candidates as $c) {
+        if (file_exists($c)) return $c;
+    }
+    $target = dirname(__DIR__) . '/data/enquiries_database.json';
+    if (!is_dir(dirname($target))) {
+        @mkdir(dirname($target), 0755, true);
+    }
+    return $target;
+}
+
+function loadAllEnquiries() {
+    $jsonFile = getEnquiriesFilePath();
+    if (file_exists($jsonFile)) {
+        $data = json_decode(file_get_contents($jsonFile), true);
+        if (is_array($data)) return $data;
+    }
+    return [];
+}
+
+function saveAllEnquiries($enquiries) {
+    $jsonFile = getEnquiriesFilePath();
+    return file_put_contents($jsonFile, json_encode($enquiries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) !== false;
+}
+
 // 5. Request Dispatcher
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -510,6 +582,332 @@ if ($method === 'GET' && ($path === '/users' || $path === '/auth/users')) {
     echo json_encode([
         'success' => true,
         'users'   => $sanitized
+    ]);
+    exit;
+}
+
+// ----------------------------------------------------
+// F. GET /api/property
+// ----------------------------------------------------
+if ($method === 'GET' && $path === '/property') {
+    $id = $_GET['id'] ?? null;
+    $slug = $_GET['slug'] ?? null;
+    $props = loadAllProperties();
+
+    if (!$id && !$slug) {
+        http_response_code(200);
+        echo json_encode([
+            'success'    => true,
+            'count'      => count($props),
+            'properties' => $props
+        ]);
+        exit;
+    }
+
+    $target = null;
+    foreach ($props as $p) {
+        if (($id && ($p['id'] ?? '') === $id) || ($slug && ($p['slug'] ?? '') === $slug)) {
+            $target = $p;
+            break;
+        }
+    }
+
+    if (!$target) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => "Property not found"]);
+        exit;
+    }
+
+    http_response_code(200);
+    echo json_encode(['success' => true, 'property' => $target]);
+    exit;
+}
+
+// ----------------------------------------------------
+// G. GET /api/media
+// ----------------------------------------------------
+if ($method === 'GET' && $path === '/media') {
+    $part = $_GET['part'] ?? null;
+    $type = $_GET['type'] ?? null;
+    $projectId = $_GET['projectId'] ?? null;
+    $search = trim($_GET['search'] ?? '');
+
+    $list = loadAllMedia();
+
+    if ($part && $part !== 'all') {
+        $pNum = (int)$part;
+        $list = array_filter($list, fn($m) => ($m['partNumber'] ?? 0) === $pNum);
+    }
+
+    if ($type && $type !== 'all') {
+        $list = array_filter($list, fn($m) => ($m['mediaType'] ?? '') === $type);
+    }
+
+    if ($projectId && $projectId !== 'all') {
+        $list = array_filter($list, fn($m) => ($m['projectId'] ?? '') === $projectId);
+    }
+
+    if ($search !== '') {
+        $q = strtolower($search);
+        $list = array_filter($list, function($m) use ($q) {
+            return str_contains(strtolower($m['originalFilename'] ?? ''), $q) ||
+                   str_contains(strtolower($m['caption'] ?? ''), $q) ||
+                   str_contains(strtolower($m['partName'] ?? ''), $q);
+        });
+    }
+
+    $list = array_values($list);
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'count'   => count($list),
+        'media'   => $list
+    ]);
+    exit;
+}
+
+// ----------------------------------------------------
+// H. GET & POST /api/enquiries
+// ----------------------------------------------------
+if ($path === '/enquiries') {
+    if ($method === 'GET') {
+        $payload = verifySessionToken($token, $AUTH_SECRET);
+        if (!$payload) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Authentication required to view enquiries.']);
+            exit;
+        }
+
+        $enqs = loadAllEnquiries();
+        if (($payload['role'] ?? '') !== 'admin') {
+            $enqs = array_filter($enqs, function($e) use ($payload) {
+                return ($e['userId'] ?? '') === $payload['userId'] ||
+                       normalizeEmail($e['email'] ?? '') === normalizeEmail($payload['email'] ?? '');
+            });
+        }
+
+        $enqs = array_values($enqs);
+        http_response_code(200);
+        echo json_encode([
+            'success'   => true,
+            'count'     => count($enqs),
+            'enquiries' => $enqs
+        ]);
+        exit;
+    }
+
+    if ($method === 'POST') {
+        $name = trim($body['name'] ?? '');
+        $email = normalizeEmail($body['email'] ?? '');
+        $phone = trim($body['phone'] ?? '');
+
+        if (!$name || !$email || !$phone) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error'   => 'Name, email address, and mobile number are required to submit an enquiry.'
+            ]);
+            exit;
+        }
+
+        $payload = verifySessionToken($token, $AUTH_SECRET);
+        $newEnq = [
+            'id'               => 'enq_' . round(microtime(true) * 1000) . '_' . substr(md5(uniqid()), 0, 4),
+            'userId'           => $payload ? $payload['userId'] : 'guest',
+            'propertyId'       => $body['propertyId'] ?? null,
+            'propertyTitle'    => $body['propertyTitle'] ?? '',
+            'propertyLocation' => $body['propertyLocation'] ?? '',
+            'propertyPrice'    => $body['propertyPrice'] ?? '',
+            'propertyImg'      => $body['propertyImg'] ?? '',
+            'name'             => $name,
+            'email'            => $email,
+            'phone'            => formatIndianPhone($phone),
+            'message'          => trim($body['message'] ?? ''),
+            'visitDate'        => $body['visitDate'] ?? null,
+            'status'           => 'New',
+            'createdAt'        => date('c')
+        ];
+
+        $enqs = loadAllEnquiries();
+        array_unshift($enqs, $newEnq);
+        saveAllEnquiries($enqs);
+
+        http_response_code(201);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Enquiry received successfully. Our property consultant will contact you shortly.',
+            'enquiry' => $newEnq
+        ]);
+        exit;
+    }
+}
+
+// ----------------------------------------------------
+// I. POST /api/update-profile
+// ----------------------------------------------------
+if ($method === 'POST' && ($path === '/update-profile' || $path === '/auth/update-profile')) {
+    $payload = verifySessionToken($token, $AUTH_SECRET);
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required. Please log in.']);
+        exit;
+    }
+
+    $users = loadAllUsers();
+    $userIndex = -1;
+    foreach ($users as $idx => $u) {
+        if ($u['id'] === $payload['userId'] || normalizeEmail($u['email']) === normalizeEmail($payload['email'])) {
+            $userIndex = $idx;
+            break;
+        }
+    }
+
+    if ($userIndex === -1) {
+        http_response_code(404);
+        echo json_encode(['error' => 'User account not found.']);
+        exit;
+    }
+
+    $targetUser = $users[$userIndex];
+
+    if (!empty($body['name'])) {
+        $cleanName = trim($body['name']);
+        $targetUser['name'] = $cleanName;
+        $parts = explode(' ', $cleanName, 2);
+        $targetUser['firstName'] = $parts[0] ?: ($targetUser['firstName'] ?? 'User');
+        $targetUser['lastName'] = $parts[1] ?? '';
+    }
+
+    if (!empty($body['phone'])) {
+        $targetUser['phone'] = formatIndianPhone($body['phone']);
+    }
+
+    if (isset($body['city'])) $targetUser['city'] = trim($body['city']);
+    if (isset($body['address'])) $targetUser['address'] = trim($body['address']);
+    if (isset($body['avatar'])) $targetUser['avatar'] = trim($body['avatar']);
+    if (isset($body['notificationPrefs']) && is_array($body['notificationPrefs'])) {
+        $targetUser['notificationPrefs'] = array_merge($targetUser['notificationPrefs'] ?? [], $body['notificationPrefs']);
+    }
+
+    $targetUser['profileCompleted'] = min(100, (int)($targetUser['profileCompleted'] ?? 80) + 10);
+    // Role escalation prevention
+    $targetUser['role'] = $users[$userIndex]['role'] ?? 'buyer';
+
+    $users[$userIndex] = $targetUser;
+    saveAllUsers($users);
+
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Profile updated successfully',
+        'user'    => sanitizeUser($targetUser)
+    ]);
+    exit;
+}
+
+// ----------------------------------------------------
+// J. POST /api/change-password
+// ----------------------------------------------------
+if ($method === 'POST' && ($path === '/change-password' || $path === '/auth/change-password')) {
+    $payload = verifySessionToken($token, $AUTH_SECRET);
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required. Please log in.']);
+        exit;
+    }
+
+    $currentPassword = $body['currentPassword'] ?? '';
+    $newPassword = $body['newPassword'] ?? '';
+
+    if (strlen($newPassword) < 6) {
+        http_response_code(400);
+        echo json_encode(['error' => 'New password must be at least 6 characters long.']);
+        exit;
+    }
+
+    $users = loadAllUsers();
+    $userIndex = -1;
+    foreach ($users as $idx => $u) {
+        if ($u['id'] === $payload['userId'] || normalizeEmail($u['email']) === normalizeEmail($payload['email'])) {
+            $userIndex = $idx;
+            break;
+        }
+    }
+
+    if ($userIndex === -1) {
+        http_response_code(404);
+        echo json_encode(['error' => 'User account not found.']);
+        exit;
+    }
+
+    $targetUser = $users[$userIndex];
+
+    if ($currentPassword) {
+        if (!verifyPassword($currentPassword, $targetUser['passwordHash'])) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Current password is incorrect.']);
+            exit;
+        }
+    } elseif (empty($targetUser['mustChangePassword'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Current password is required to change password.']);
+        exit;
+    }
+
+    $targetUser['passwordHash'] = hashPassword($newPassword);
+    $targetUser['mustChangePassword'] = false;
+    $users[$userIndex] = $targetUser;
+    saveAllUsers($users);
+
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Password updated successfully'
+    ]);
+    exit;
+}
+
+// ----------------------------------------------------
+// K. POST /api/reset-password
+// ----------------------------------------------------
+if ($method === 'POST' && ($path === '/reset-password' || $path === '/auth/reset-password')) {
+    $identifier = trim($body['identifier'] ?? '');
+    $newPassword = $body['newPassword'] ?? '';
+
+    if (!$identifier || strlen($newPassword) < 6) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Valid identifier and minimum 6-character new password required.']);
+        exit;
+    }
+
+    $users = loadAllUsers();
+    $userIndex = -1;
+    $normEmail = normalizeEmail($identifier);
+    $normPhone = normalizeIndianPhone($identifier);
+
+    foreach ($users as $idx => $u) {
+        $uEmail = normalizeEmail($u['email'] ?? '');
+        $uPhone = normalizeIndianPhone($u['phone'] ?? '');
+        if (($normEmail && $uEmail === $normEmail) || ($normPhone && $uPhone === $normPhone)) {
+            $userIndex = $idx;
+            break;
+        }
+    }
+
+    if ($userIndex === -1) {
+        http_response_code(404);
+        echo json_encode(['error' => 'No account found matching identifier.']);
+        exit;
+    }
+
+    $users[$userIndex]['passwordHash'] = hashPassword($newPassword);
+    $users[$userIndex]['mustChangePassword'] = false;
+    saveAllUsers($users);
+
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Password reset successfully. You may now log in with your new password.'
     ]);
     exit;
 }
