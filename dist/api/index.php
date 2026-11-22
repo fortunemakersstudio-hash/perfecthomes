@@ -568,10 +568,20 @@ if ($method === 'GET' && ($path === '/session' || $path === '/auth/me' || $path 
 // E. GET /api/users or /api/auth/users (Admin Only)
 // ----------------------------------------------------
 if ($method === 'GET' && ($path === '/users' || $path === '/auth/users')) {
+    if (!$token) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Authentication required. Please log in.']);
+        exit;
+    }
     $payload = verifySessionToken($token, $AUTH_SECRET);
-    if (!$payload || ($payload['role'] ?? '') !== 'admin') {
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid or expired session token.']);
+        exit;
+    }
+    if (($payload['role'] ?? '') !== 'admin') {
         http_response_code(403);
-        echo json_encode(['error' => 'Unauthorized: Administrator access required.']);
+        echo json_encode(['error' => 'Forbidden: Administrator privileges required.']);
         exit;
     }
 
